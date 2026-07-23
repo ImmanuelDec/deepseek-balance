@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>DeepSeek 余额</title>
+<!-- PWA Manifest -->
+<link rel="manifest" href="manifest.json">
+<!-- Apple touch icon -->
+<link rel="apple-touch-icon" href="icon.svg">
+<!-- Theme color -->
+<meta name="theme-color" content="#0f1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="DeepSeek API 余额查询">
+<style>
+  :root {
+    --bg: #0e1017;
+    --card: #161922;
+    --card2: #1e2233;
+    --border: #282d42;
+    --text: #ecedee;
+    --text2: #8b8fa7;
+    --text3: #5c6080;
+    --accent: #4f7bff;
+    --accent-glow: rgba(79,123,255,.25);
+    --green: #34d399;
+    --red: #f87171;
+    --orange: #f59e0b;
+    --purple: #a78bfa;
+    --radius: 14px;
+    --radius-sm: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro", "PingFang SC", "Helvetica Neue", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior: none;
+  }
+
+  /* Status bar spacer */
+  .status-bar {
+    height: env(safe-area-inset-top, 48px);
+    background: var(--bg);
+  }
+
+  .container {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0 16px 24px;
+  }
+
+  /* ====== HEADER ====== */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0 16px;
+  }
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .header-icon {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, #4f7bff, #6c5ce7);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -.3px;
+  }
+  .header .subtitle {
+    font-size: 11px;
+    color: var(--text2);
+    font-weight: 400;
+    margin-top: -1px;
+  }
+  .header-right {
+    display: flex;
+    gap: 6px;
+  }
+  .header-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .header-btn:active {
+    background: var(--border);
+    transform: scale(.92);
+  }
+
+  /* ====== REFRESH TIME ====== */
+  .refresh-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 0 12px;
+    font-size: 11px;
+    color: var(--text3);
+  }
+  .refresh-bar .time {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .refresh-bar .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .refresh-bar .dot.online { background: var(--green); box-shadow: 0 0 6px rgba(52,211,153,.4); }
+  .refresh-bar .dot.offline { background: var(--red); }
+  .refresh-bar .dot.loading { background: var(--orange); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
+  /* ====== BALANCE CARD ====== */
+  .balance-card {
+    background: linear-gradient(135deg, #1a1f35 0%, #161922 100%);
+    border-radius: 20px;
+    padding: 28px 24px 24px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .balance-card::before {
+    content: '';
+    position: absolute;
+    top: -60px;
+    right: -60px;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(79,123,255,.08) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .balance-top {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    margin-bottom: 2px;
+  }
+  .balance-amount {
+    font-size: 42px;
+    font-weight: 800;
+    letter-spacing: -2px;
+    line-height: 1;
+  }
+  .balance-currency {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text2);
+    margin-bottom: 6px;
+    margin-left: 2px;
+  }
+  .balance-label {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 16px;
+  }
+  .balance-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-bottom: 16px;
+  }
+  .balance-status.ok { background: rgba(52,211,153,.12); color: var(--green); }
+  .balance-status.low { background: rgba(245,158,11,.12); color: var(--orange); }
+  .balance-status.empty { background: rgba(248,113,113,.12); color: var(--red); }
+
+  .balance-breakdown {
+    display: flex;
+    gap: 8px;
+  }
+  .balance-breakdown .item {
+    flex: 1;
+    background: rgba(255,255,255,.04);
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+  }
+  .balance-breakdown .item .num {
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .balance-breakdown .item .lbl {
+    font-size: 10px;
+    color: var(--text2);
+    margin-top: 2px;
+  }
+  .balance-breakdown .item.topped .num { color: var(--green); }
+  .balance-breakdown .item.granted .num { color: var(--orange); }
+
+  /* ====== SECTION TITLE ====== */
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .section-title .badge {
+    font-size: 10px;
+    color: var(--text3);
+    font-weight: 400;
+  }
+
+  /* ====== TOKEN CARDS ====== */
+  .token-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .token-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    border: 1px solid var(--border);
+  }
+  .token-card .model-name {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .token-card .model-tag {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+  }
+  .token-card .model-tag.flash { background: rgba(79,123,255,.15); color: var(--accent); }
+  .token-card .model-tag.pro { background: rgba(167,139,250,.15); color: var(--purple); }
+  .token-card .token-count {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    line-height: 1.2;
+  }
+  .token-card .token-count .unit {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text2);
+    margin-left: 2px;
+  }
+  .token-card .token-desc {
+    font-size: 10px;
+    color: var(--text3);
+    margin-top: 2px;
+  }
+
+  /* ====== SCENARIO CARD ====== */
+  .scenario-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    border: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+  .scenario-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    font-size: 13px;
+  }
+  .scenario-row + .scenario-row { border-top: 1px solid var(--border); }
+  .scenario-row .val {
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .scenario-row .val.flash-color { color: var(--accent); }
+  .scenario-row .val.pro-color { color: var(--purple); }
+  .scenario-note {
+    font-size: 10px;
+    color: var(--text3);
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ====== SETTINGS SHEET ====== */
+  .settings-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.6);
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .3s;
+  }
+  .settings-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .settings-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--card);
+    border-radius: 20px 20px 0 0;
+    padding: 20px 24px calc(24px + env(safe-area-inset-bottom, 0));
+    z-index: 101;
+    transform: translateY(100%);
+    transition: transform .35s cubic-bezier(.32,.72,0,1);
+    max-height: 80vh;
+    overflow-y: auto;
+    border-top: 1px solid var(--border);
+  }
+  .settings-sheet.open {
+    transform: translateY(0);
+  }
+  .settings-handle {
+    width: 36px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 0 auto 16px;
+  }
+  .settings-sheet h2 {
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+  .settings-group {
+    margin-bottom: 16px;
+  }
+  .settings-group label {
+    font-size: 12px;
+    color: var(--text2);
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .settings-group input {
+    width: 100%;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    transition: border .2s;
+  }
+  .settings-group input:focus { border-color: var(--accent); }
+  .settings-group .hint {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 5px;
+  }
+  .settings-save {
+    width: 100%;
+    background: var(--accent);
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .2s;
+    margin-top: 4px;
+  }
+  .settings-save:active { opacity: .7; }
+  .settings-save:disabled { opacity: .4; cursor: not-allowed; }
+
+  .settings-footer {
+    font-size: 11px;
+    color: var(--text3);
+    text-align: center;
+    margin-top: 14px;
+    line-height: 1.6;
+  }
+
+  /* ====== LOADING ====== */
+  .loading-shimmer {
+    padding: 20px;
+  }
+  .shimmer-line {
+    height: 14px;
+    background: linear-gradient(90deg, var(--card2) 25%, var(--border) 50%, var(--card2) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 4px;
+    margin-bottom: 10px;
+  }
+  .shimmer-line.w70 { width: 70%; }
+  .shimmer-line.w50 { width: 50%; }
+  .shimmer-line.w90 { width: 90%; }
+  .shimmer-line.h40 { height: 40px; border-radius: 8px; }
+  .shimmer-line.h24 { height: 24px; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  /* ====== ERROR STATE ====== */
+  .error-state {
+    text-align: center;
+    padding: 40px 20px;
+  }
+  .error-state .icon { font-size: 40px; margin-bottom: 12px; }
+  .error-state .msg { font-size: 14px; color: var(--text2); }
+  .error-state .detail { font-size: 12px; color: var(--text3); margin-top: 6px; word-break: break-all; }
+  .error-state .retry-btn {
+    margin-top: 16px;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 24px;
+    color: var(--text);
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .error-state .retry-btn:active { opacity: .7; }
+
+  /* ====== SETUP (no key) ====== */
+  .setup-state {
+    text-align: center;
+    padding: 60px 20px 40px;
+  }
+  .setup-state .icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #4f7bff, #6c5ce7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    margin: 0 auto 16px;
+    color: #fff;
+  }
+  .setup-state h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+  .setup-state p { font-size: 14px; color: var(--text2); line-height: 1.6; }
+  .setup-btn {
+    margin-top: 20px;
+    background: var(--accent);
+    border: none;
+    border-radius: 12px;
+    padding: 14px 32px;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .2s;
+  }
+  .setup-btn:active { opacity: .7; }
+
+  /* History */
+  .history-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+  }
+  .history-header:active { background: var(--card2); }
+  .history-header .arrow { transition: transform .3s; font-size: 12px; }
+  .history-header .arrow.open { transform: rotate(180deg); }
+  .history-body { display: none; }
+  .history-body.open { display: block; }
+  .history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .history-item .bal { font-weight: 600; }
+  .history-item .time { color: var(--text3); font-size: 11px; }
+  .history-empty {
+    padding: 20px;
+    text-align: center;
+    color: var(--text3);
+    font-size: 12px;
+  }
+
+  @media (max-width: 380px) {
+    .balance-amount { font-size: 34px; }
+    .container { padding: 0 12px 20px; }
+    .token-card .token-count { font-size: 22px; }
+    .balance-card { padding: 20px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="status-bar"></div>
+<div class="container">
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-icon">DS</div>
+      <div>
+        <h1>DeepSeek</h1>
+        <div class="subtitle">API 余额查询</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="header-btn" onclick="refreshBalance()" id="refreshBtn" title="刷新">⟳</div>
+      <div class="header-btn" onclick="openSettings()" title="设置">⚙</div>
+    </div>
+  </div>
+
+  <!-- REFRESH BAR -->
+  <div class="refresh-bar" id="refreshBar" style="display:none">
+    <div class="time"><span class="dot" id="statusDot"></span><span id="statusText">加载中</span></div>
+    <span id="refreshTime"></span>
+  </div>
+
+  <!-- SETUP (no API key) -->
+  <div class="setup-state" id="setupState">
+    <div class="icon">⚡</div>
+    <h2>开始使用</h2>
+    <p>输入你的 DeepSeek API Key<br>即可查询账户余额</p>
+    <button class="setup-btn" onclick="openSettings()">输入 API Key</button>
+  </div>
+
+  <!-- LOADING -->
+  <div id="loadingState" style="display:none">
+    <div class="balance-card">
+      <div class="loading-shimmer">
+        <div class="shimmer-line w50"></div>
+        <div class="shimmer-line h40 w90"></div>
+        <div class="shimmer-line w70"></div>
+        <div class="shimmer-line h24 w90"></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <div class="shimmer-line w50 h40"></div>
+          <div class="shimmer-line w50 h40"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ERROR -->
+  <div class="error-state" id="errorState" style="display:none">
+    <div class="icon">⚠️</div>
+    <div class="msg" id="errorMsg">出错了</div>
+    <div class="detail" id="errorDetail"></div>
+    <button class="retry-btn" onclick="refreshBalance()">重试</button>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div id="mainContent" style="display:none">
+    <!-- Balance Card -->
+    <div class="balance-card">
+      <div class="refresh-bar" style="padding:0 0 8px">
+        <div class="time"><span class="dot online" id="mainDot"></span>实时</div>
+        <span id="mainRefreshTime">—</span>
+      </div>
+      <div class="balance-top">
+        <span class="balance-amount" id="balAmount">—</span>
+        <span class="balance-currency" id="balCurrency">CNY</span>
+      </div>
+      <div class="balance-label">账户余额</div>
+      <div class="balance-status" id="balStatus">—</div>
+      <div class="balance-breakdown">
+        <div class="item topped">
+          <div class="num" id="toppedBal">—</div>
+          <div class="lbl">充值</div>
+        </div>
+        <div class="item granted">
+          <div class="num" id="grantedBal">—</div>
+          <div class="lbl">赠送</div>
+        </div>
+        <div class="item total">
+          <div class="num" id="totalBal">—</div>
+          <div class="lbl">总计</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Token Estimate -->
+    <div class="section-title">
+      预估可用 Token
+      <span class="badge">基于当前余额</span>
+    </div>
+
+    <div class="token-grid">
+      <div class="token-card">
+        <div class="model-name">Flash <span class="model-tag flash">V4</span></div>
+        <div class="token-count"><span id="flashTokens">—</span><span class="unit">M</span></div>
+        <div class="token-desc">混合场景 ≈ ¥1.1/M</div>
+      </div>
+      <div class="token-card">
+        <div class="model-name">Pro <span class="model-tag pro">V4</span></div>
+        <div class="token-count"><span id="proTokens">—</span><span class="unit">M</span></div>
+        <div class="token-desc">混合场景 ≈ ¥3.9/M</div>
+      </div>
+      <div class="token-card">
+        <div class="model-name">Flash <span class="model-tag flash">V4</span></div>
+        <div class="token-count"><span id="flashOut">—</span><span class="unit">M</span></div>
+        <div class="token-desc">仅输出 ¥2/M</div>
+      </div>
+      <div class="token-card">
+        <div class="model-name">Pro <span class="model-tag pro">V4</span></div>
+        <div class="token-count"><span id="proOut">—</span><span class="unit">M</span></div>
+        <div class="token-desc">仅输出 ¥6/M</div>
+      </div>
+    </div>
+
+    <!-- Scenarios -->
+    <div class="scenario-card">
+      <div class="scenario-row">
+        <span>💬 日常对话 (Flash)</span>
+        <span class="val flash-color" id="dailyTokens">—</span>
+      </div>
+      <div class="scenario-row">
+        <span>🧠 深度推理 (Pro)</span>
+        <span class="val pro-color" id="deepTokens">—</span>
+      </div>
+      <div class="scenario-row">
+        <span>⚖️ 混合使用 (Flash 70%+Pro 30%)</span>
+        <span class="val" id="mixedTokens" style="color:var(--text)">—</span>
+      </div>
+      <div class="scenario-note">* 仅供参考，实际以 DeepSeek 官方计费为准</div>
+    </div>
+
+    <!-- History -->
+    <div class="history-card" id="historyCard">
+      <div class="history-header" id="historyHeader">
+        <span>📋 查询记录</span>
+        <span class="arrow" id="historyArrow">▾</span>
+      </div>
+      <div class="history-body" id="historyBody"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS SHEET -->
+<div class="settings-overlay" id="settingsOverlay" onclick="closeSettings()"></div>
+<div class="settings-sheet" id="settingsSheet">
+  <div class="settings-handle"></div>
+  <h2>设置</h2>
+  <div class="settings-group">
+    <label>DeepSeek API Key</label>
+    <input type="password" id="settingsKey" placeholder="sk-..." autocomplete="off">
+    <div class="hint">API Key 仅保存在本机浏览器，不会上传到任何服务器</div>
+  </div>
+  <button class="settings-save" id="settingsSave" onclick="saveSettings()">保存</button>
+  <div class="settings-footer">
+    API Key 仅用于向 api.deepseek.com 查询余额<br>
+    数据不会离开你的设备和 DeepSeek 官方服务器
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'ds_balance_history';
+const KEY_STORAGE = 'ds_api_key';
+const PRICING = {
+  flash: { label: 'Flash', input: 1.0, output: 2.0, cacheHit: 0.02 },
+  pro:   { label: 'Pro',   input: 3.0, output: 6.0, cacheHit: 0.025 }
+};
+
+let apiKey = localStorage.getItem(KEY_STORAGE) || '';
+
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+  if (apiKey) {
+    refreshBalance();
+  }
+  setupHistory();
+  // Settings: load current key
+  document.getElementById('settingsKey').value = apiKey;
+});
+
+async function refreshBalance() {
+  if (!apiKey) {
+    showSetup();
+    return;
+  }
+
+  showLoading();
+  hideError();
+
+  const refreshBtn = document.getElementById('refreshBtn');
+  refreshBtn.style.transform = 'rotate(360deg)';
+  refreshBtn.style.transition = 'transform .5s';
+
+  try {
+    const res = await fetch('https://api.deepseek.com/user/balance', {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!res.ok) {
+      if (res.status === 401) throw new Error('API Key 无效或已过期');
+      if (res.status === 429) throw new Error('请求过于频繁');
+      throw new Error(`请求失败 (${res.status})`);
+    }
+
+    const data = await res.json();
+    showMain(data);
+    saveHistory(data);
+  } catch (err) {
+    showError(err.message);
+  }
+
+  refreshBtn.style.transform = '';
+  refreshBtn.style.transition = '';
+}
+
+/* ====== UI HELPERS ====== */
+function showSetup() {
+  document.getElementById('setupState').style.display = 'block';
+  document.getElementById('loadingState').style.display = 'none';
+  document.getElementById('errorState').style.display = 'none';
+  document.getElementById('mainContent').style.display = 'none';
+  document.getElementById('refreshBar').style.display = 'none';
+}
+
+function showLoading() {
+  document.getElementById('setupState').style.display = 'none';
+  document.getElementById('loadingState').style.display = 'block';
+  document.getElementById('errorState').style.display = 'none';
+  document.getElementById('mainContent').style.display = 'none';
+  document.getElementById('refreshBar').style.display = 'block';
+  document.getElementById('statusDot').className = 'dot loading';
+  document.getElementById('statusText').textContent = '查询中...';
+}
+
+function showError(msg) {
+  document.getElementById('setupState').style.display = 'none';
+  document.getElementById('loadingState').style.display = 'none';
+  document.getElementById('errorState').style.display = 'block';
+  document.getElementById('mainContent').style.display = 'none';
+  document.getElementById('refreshBar').style.display = 'block';
+  document.getElementById('statusDot').className = 'dot offline';
+  document.getElementById('statusText').textContent = '查询失败';
+  document.getElementById('errorMsg').textContent = '查询出错';
+  document.getElementById('errorDetail').textContent = msg;
+}
+
+function hideError() {
+  document.getElementById('errorState').style.display = 'none';
+}
+
+function showMain(data) {
+  document.getElementById('setupState').style.display = 'none';
+  document.getElementById('loadingState').style.display = 'none';
+  document.getElementById('errorState').style.display = 'none';
+  document.getElementById('mainContent').style.display = 'block';
+  document.getElementById('refreshBar').style.display = 'block';
+
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  document.getElementById('statusDot').className = 'dot online';
+  document.getElementById('statusText').textContent = '已更新';
+  document.getElementById('refreshTime').textContent = timeStr;
+  document.getElementById('mainRefreshTime').textContent = timeStr;
+
+  renderBalance(data);
+  calcTokens(data);
+}
+
+function renderBalance(data) {
+  const bis = data.balance_infos || [];
+  if (!bis.length) {
+    document.getElementById('balAmount').textContent = '0.00';
+    document.getElementById('balCurrency').textContent = 'CNY';
+    document.getElementById('toppedBal').textContent = '0.00';
+    document.getElementById('grantedBal').textContent = '0.00';
+    document.getElementById('totalBal').textContent = '0.00';
+    setStatus('empty', '❌ 无余额数据');
+    return;
+  }
+
+  // Prefer CNY
+  let primary = bis.find(b => b.currency === 'CNY') || bis[0];
+  const total = parseFloat(primary.total_balance) || 0;
+  const topped = parseFloat(primary.topped_up_balance) || 0;
+  const granted = parseFloat(primary.granted_balance) || 0;
+
+  document.getElementById('balAmount').textContent = total.toFixed(2);
+  document.getElementById('balCurrency').textContent = primary.currency;
+  document.getElementById('totalBal').textContent = total.toFixed(2);
+  document.getElementById('toppedBal').textContent = topped.toFixed(2);
+  document.getElementById('grantedBal').textContent = granted.toFixed(2);
+
+  if (data.is_available && total > 0) {
+    if (total < 5) setStatus('low', `⚠️ 余额不足 ¥5 (约 ${total.toFixed(2)} ${primary.currency})`);
+    else setStatus('ok', '✅ 账户正常');
+  } else if (total <= 0) {
+    setStatus('empty', '❌ 余额为 0');
+  } else {
+    setStatus('low', '⚠️ 余额可能不足');
+  }
+}
+
+function setStatus(type, text) {
+  const el = document.getElementById('balStatus');
+  el.textContent = text;
+  el.className = 'balance-status ' + type;
+}
+
+function calcTokens(data) {
+  const bis = data.balance_infos || [];
+  const primary = bis.find(b => b.currency === 'CNY') || bis[0];
+  const balance = primary ? parseFloat(primary.total_balance) || 0 : 0;
+
+  if (balance <= 0) {
+    ['flashTokens','proTokens','flashOut','proOut','dailyTokens','deepTokens','mixedTokens']
+      .forEach(id => document.getElementById(id).textContent = '0');
+    return;
+  }
+
+  // Average price per 1M tokens for mixed scenarios
+  const flashMixed = 0.3*0.02 + 0.3*1.0 + 0.4*2.0;   // ≈ 1.106
+  const proMixed   = 0.2*0.025 + 0.3*3.0 + 0.5*6.0;  // ≈ 3.905
+  const dailyPrice = 0.2*0.02 + 0.4*1.0 + 0.4*2.0;   // ≈ 1.204
+  const deepPrice  = 0.1*0.025 + 0.3*3.0 + 0.6*6.0;  // ≈ 4.5025
+  const mixPrice   = 0.7 * 1.106 + 0.3 * 3.905;       // ≈ 1.9457
+
+  const fmt = (n) => {
+    if (n >= 10000) return (n / 1000).toFixed(1) + 'B';
+    if (n >= 10) return n.toFixed(0) + 'M';
+    if (n >= 1) return n.toFixed(1) + 'M';
+    return (n * 1000).toFixed(0) + 'K';
+  };
+
+  document.getElementById('flashTokens').textContent = fmt(balance / flashMixed);
+  document.getElementById('proTokens').textContent = fmt(balance / proMixed);
+  document.getElementById('flashOut').textContent = fmt(balance / 2.0);
+  document.getElementById('proOut').textContent = fmt(balance / 6.0);
+  document.getElementById('dailyTokens').textContent = fmt(balance / dailyPrice);
+  document.getElementById('deepTokens').textContent = fmt(balance / deepPrice);
+  document.getElementById('mixedTokens').textContent = fmt(balance / mixPrice);
+}
+
+/* ====== SETTINGS ====== */
+function openSettings() {
+  document.getElementById('settingsKey').value = apiKey;
+  document.getElementById('settingsOverlay').classList.add('open');
+  document.getElementById('settingsSheet').classList.add('open');
+}
+
+function closeSettings() {
+  document.getElementById('settingsOverlay').classList.remove('open');
+  document.getElementById('settingsSheet').classList.remove('open');
+}
+
+function saveSettings() {
+  const newKey = document.getElementById('settingsKey').value.trim();
+  if (!newKey) {
+    alert('请输入 API Key');
+    return;
+  }
+  apiKey = newKey;
+  localStorage.setItem(KEY_STORAGE, newKey);
+  closeSettings();
+  refreshBalance();
+}
+
+/* ====== HISTORY ====== */
+function saveHistory(data) {
+  const bis = data.balance_infos || [];
+  const primary = bis.find(b => b.currency === 'CNY') || bis[0];
+  const total = primary ? parseFloat(primary.total_balance).toFixed(2) : '0.00';
+  const currency = primary ? primary.currency : 'CNY';
+
+  const now = new Date();
+  const timeStr = now.toLocaleString('zh-CN', {
+    month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit'
+  });
+
+  let history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  history.unshift({ time: timeStr, balance: total, currency, available: data.is_available });
+  if (history.length > 30) history = history.slice(0, 30);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+  renderHistory();
+}
+
+function renderHistory() {
+  const history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  const body = document.getElementById('historyBody');
+
+  if (!history.length) {
+    body.innerHTML = '<div class="history-empty">暂无查询记录</div>';
+    return;
+  }
+
+  body.innerHTML = history.map(h => `
+    <div class="history-item">
+      <div><span class="bal">${h.balance} ${h.currency}</span>${h.available ? ' <span style="color:var(--green)">✓</span>' : ''}</div>
+      <div class="time">${h.time}</div>
+    </div>
+  `).join('');
+}
+
+function setupHistory() {
+  document.getElementById('historyHeader').addEventListener('click', () => {
+    const body = document.getElementById('historyBody');
+    const arrow = document.getElementById('historyArrow');
+    body.classList.toggle('open');
+    arrow.classList.toggle('open');
+    if (body.classList.contains('open')) {
+      renderHistory();
+    }
+  });
+  // Auto-open if has history
+  const history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  if (history.length > 0) {
+    document.getElementById('historyBody').classList.add('open');
+    document.getElementById('historyArrow').classList.add('open');
+    renderHistory();
+  }
+}
+
+/* ====== KEYBOARD SHORTCUT: Enter to save settings ====== */
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && document.getElementById('settingsSheet').classList.contains('open')) {
+    saveSettings();
+  }
+});
+</script>
+</body>
+</html>
