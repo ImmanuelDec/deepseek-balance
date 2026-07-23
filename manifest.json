@@ -1,0 +1,19 @@
+{
+  "name": "DeepSeek 余额",
+  "short_name": "DS余额",
+  "description": "DeepSeek API 余额查询与Token预估",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0e1017",
+  "theme_color": "#0f1117",
+  "categories": ["utilities", "finance"],
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
